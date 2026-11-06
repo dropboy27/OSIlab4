@@ -4,6 +4,10 @@
 #include <sys/wait.h>
 #include <limits.h>
 #include <string.h>
+#include <sys/mman.h>
+#include <semaphore.h>
+#include <fcntl.h>
+#include "shared.h"
 
 int main(void)
 {
@@ -23,9 +27,34 @@ int main(void)
         perror("open");
         return 1;
     }
-    int fd = shm_open("/my_shared", O_RDONLY, 0600);
-    if(fd == -1){
-        perror("shm error")
+    int data_fd = shm_open("/my_shared", O_CREAT | O_RDWR, 0600);
+    if(data_fd == -1){
+        perror("shm error");
+        return 1;
+    }
+    if (ftruncate(data_fd, sizeof(SharedData)) == -1)
+    {
+        perror("ftruncate");
+        close(data_fd);
+        return 1;
+    }
+    float *data = mmap(NULL, sizeof(SharedData), PROT_READ | PROT_WRITE, MAP_SHARED, data_fd, 0);
+    if (data == MAP_FAILED)
+    {
+        perror("mmap");
+        close(data_fd);
+        return 1;
+    }
+    sem_t *sem_ready = sem_open("/sem_ready", O_CREAT | O_EXCL, 0600, 0);
+    if(sem_ready == SEM_FAILED){
+        perror("sem_ready error");
+        close(data_fd);
+        return 1;
+    }
+    sem_t *sem_read = sem_open("/sem_read", O_CREAT | O_EXCL, 0600, 0);
+    if(sem_read == SEM_FAILED){
+        perror("sem_read error");
+        close(data_fd);
         return 1;
     }
     pid_t pid = fork();
@@ -38,6 +67,7 @@ int main(void)
     {
         printf("Child PID: %d\n", getpid());
         fflush(stdout);
+        dup2(file_fd, 0);
         close(file_fd);
         execl("./child", "child", (char *)NULL);
         perror("execl");
@@ -45,8 +75,8 @@ int main(void)
     }
     else
     {
-        printf("Parent PID: %d\n", getpid());
-        fflush(stdout);
+        sem_wait(sem_ready)
+
         close(file_fd);
         char buf[256];
         ssize_t n;
@@ -58,7 +88,6 @@ int main(void)
         {
             perror("read");
         }
-        close(pipe1[0]);
         int status;
         if (waitpid(pid, &status, 0) == -1)
         {
