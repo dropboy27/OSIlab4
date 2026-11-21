@@ -1,11 +1,7 @@
-#ifndef SHARED_H
-#define SHARED_H
+#pragma once
 
-typedef struct
+typedef struct SharedData
 {
     float result;
     int finished;
-    int error;
 } SharedData;
-
-#endif
