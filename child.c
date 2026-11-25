@@ -27,8 +27,7 @@ int main(void)
         goto cleanup;
     }
 
-    data = mmap(NULL, sizeof(SharedData),
-                PROT_READ | PROT_WRITE, MAP_SHARED, data_fd, 0);
+    data = mmap(NULL, sizeof(SharedData),PROT_READ | PROT_WRITE, MAP_SHARED, data_fd, 0);
     if (data == MAP_FAILED)
     {
         perror("mmap");
